@@ -1,6 +1,6 @@
-## Interface: 110000, 110002
+## Interface: 110100
 ## Version: @project-version@
-
+## Category: Media
 ## Title: PhanxFont
 ## Notes: Simple font replacement.
 ## Notes-deDE: Einfacher Schriftenersatz.

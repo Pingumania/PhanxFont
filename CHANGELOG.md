@@ -1,3 +1,8 @@
+PhanxFont | 1.7.2
+-----------------
+- Update for patch 11.1.0
+- Add option to set size of chat bubble font
+
 PhanxFont | 1.7.1
 -----------------
 - Update for patch 11.0.2
