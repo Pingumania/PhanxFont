@@ -20,6 +20,7 @@ PhanxFontDB = {
 	damage = "Lato Black",
 	scale  = 1,
 	damagescale = 2,
+	chatbubblesize = 16,
 }
 
 local NORMAL       = [[Interface\AddOns\PhanxMedia\font\Lato.ttf]]
@@ -221,7 +222,7 @@ function Addon:SetFonts(event, addon)
 	self:SetFont(SystemFont_Shadow_Med3_Outline,            NORMAL, 14, "OUTLINE", nil, nil, nil, 0, 0, 0, 1, -1)
 	self:SetFont(SystemFont_Shadow_Med3,                    NORMAL, 14, "", nil, nil, nil, 0, 0, 0, 1, -1)
 	self:SetFont(SystemFont_Shadow_Outline_Huge3,           NORMAL, 25, "OUTLINE", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Small_Outline,           NORMAL, 10, "OUTLINE", nil, nil, nil, 0, 0, 0, 1, -1)  
+	self:SetFont(SystemFont_Shadow_Small_Outline,           NORMAL, 10, "OUTLINE", nil, nil, nil, 0, 0, 0, 1, -1)
 	self:SetFont(SystemFont_Shadow_Small,                   NORMAL, 10, "", nil, nil, nil, 0, 0, 0, nil, nil)
 	self:SetFont(SystemFont_Shadow_Small2_Outline,          NORMAL, 11, "OUTLINE", nil, nil, nil, 0, 0, 0, 1, -1)
 	self:SetFont(SystemFont_Shadow_Small2,                  NORMAL, 11, "", nil, nil, nil, 0, 0, 0, 1, -1)
@@ -242,6 +243,7 @@ function Addon:SetFonts(event, addon)
 
 	-- Override
 	self:SetFont(AchievementFont_Small,              NORMAL, 12)
+	self:SetFont(ChatBubbleFont,                     NORMAL, PhanxFontDB.chatbubblesize)
 	self:SetFont(FriendsFont_Large,                  NORMAL, 15)
 	self:SetFont(FriendsFont_Normal,                 NORMAL, 13)
 	self:SetFont(FriendsFont_Small,                  NORMAL, 13)

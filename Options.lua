@@ -112,6 +112,17 @@ Options:SetScript("OnShow", function(self)
 
 	----------
 
+	local ChatBubbleSize = LibStub("PhanxConfig-Slider"):New(self, L["Chatbubble Size"], nil, 12, 32, 1, true)
+	ChatBubbleSize:SetPoint("TOPLEFT", DamageScale, "BOTTOMLEFT", 0, -16)
+	ChatBubbleSize:SetPoint("TOPRIGHT", DamageScale, "BOTTOMRIGHT", 0, -16)
+
+	function ChatBubbleSize:OnValueChanged(value)
+		PhanxFontDB.chatbubblescale = value
+		UpdatePreviews()
+	end
+
+	----------
+
 	local ReloadButton = CreateFrame("Button", "$parentReloadButton", self, "UIPanelButtonTemplate")
 	ReloadButton:SetPoint("BOTTOMLEFT", 16, 16)
 	ReloadButton:SetSize(96, 22)
@@ -127,8 +138,8 @@ Options:SetScript("OnShow", function(self)
 	----------
 
 	SampleText = self:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-	SampleText:SetPoint("TOPLEFT", DamageScale, "BOTTOMLEFT", 0, -16)
-	SampleText:SetPoint("TOPRIGHT", DamageScale, "BOTTOMRIGHT", 0, -16)
+	SampleText:SetPoint("TOPLEFT", ChatBubbleSize, "BOTTOMLEFT", 0, -16)
+	SampleText:SetPoint("TOPRIGHT", ChatBubbleSize, "BOTTOMRIGHT", 0, -16)
 	SampleText:SetPoint("BOTTOMLEFT", ReloadButton, "TOPLEFT", 0, 16)
 	SampleText:SetJustifyH("LEFT")
 	SampleText:SetText("The quick brown fox jumps over the lazy dog.\nБыстрая коричневая лиса перепрыгивает через ленивую собаку.\n敏捷的棕狐狸跳过了懒惰的狗。\n1 2 3 4 5 6 7 8 9 0\nÁá Ää Éé Íí Ññ Óó Öö ß Úú Üü\n¡! ¿? # $ € % & ° – — ●")
@@ -255,6 +266,7 @@ Options:SetScript("OnShow", function(self)
 		DamageFont:SetValue(PhanxFontDB.damage)
 		Scale:SetValue(PhanxFontDB.scale)
 		DamageScale:SetValue(PhanxFontDB.damagescale)
+		ChatBubbleSize:SetValue(PhanxFontDB.chatbubblesize)
 		UpdatePreviews(width)
 	end
 
