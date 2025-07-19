@@ -119,7 +119,7 @@ function Addon:SetFonts(event, addon)
 	self:SetFont(Game32Font,                                NORMAL, 32, "", nil, nil, nil, nil, nil, nil, nil, nil)
 	self:SetFont(Game36Font_Shadow2,                        NORMAL, 36, "", nil, nil, nil, 0, 0, 0, nil, nil)
 	self:SetFont(Game36Font,                                NORMAL, 36, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game40Font_Shadow2,                        NORMAL, 40, "", nil, nil, nil, 0, 0, 0, nil, nil)      
+	self:SetFont(Game40Font_Shadow2,                        NORMAL, 40, "", nil, nil, nil, 0, 0, 0, nil, nil)
 	self:SetFont(Game40Font,                                NORMAL, 40, "", nil, nil, nil, nil, nil, nil, nil, nil)
 	self:SetFont(Game42Font,                                NORMAL, 42, "", nil, nil, nil, nil, nil, nil, nil, nil)
 	self:SetFont(Game46Font_Shadow2,                        NORMAL, 46, "", nil, nil, nil, 0, 0, 0, nil, nil)
@@ -129,7 +129,7 @@ function Addon:SetFonts(event, addon)
 	self:SetFont(Game52Font_Shadow2,                        NORMAL, 52, "", nil, nil, nil, 0, 0, 0, nil, nil)
 	self:SetFont(Game58Font_Shadow2,                        NORMAL, 58, "", nil, nil, nil, 0, 0, 0, nil, nil)
 	self:SetFont(Game60Font,                                NORMAL, 60, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game69Font_Shadow2,                        NORMAL, 69, "", nil, nil, nil, 0, 0, 0, nil, nil)      
+	self:SetFont(Game69Font_Shadow2,                        NORMAL, 69, "", nil, nil, nil, 0, 0, 0, nil, nil)
 	self:SetFont(Game72Font_Shadow,                         NORMAL, 72, "", nil, nil, nil, 0, 0, 0, 1, -1)
 	self:SetFont(Game72Font,                                NORMAL, 72, "", nil, nil, nil, nil, nil, nil, nil, nil)
 	self:SetFont(GameFont_Gigantic,                         NORMAL, 32, "", 1.0, 0.82, 0, 0.0, 0.0, 0.0, 1, -1)
@@ -310,7 +310,7 @@ function Addon:SetFonts(event, addon)
 	end
 
 	-- WorldMap Bounty board
-	if WorldMapFrame.overlayFrames then
+	if Addon.Retail then
 		self:SetFont(WorldMapFrame.overlayFrames[4].BountyName, NORMAL, 16, "OUTLINE", nil, nil, nil, nil, nil, nil, 1, -1)
 	end
 
@@ -340,11 +340,18 @@ f:SetScript("OnEvent", function(self, event, addon)
 		end
 	end
 
-	BattlePetTooltip.Name:SetFontObject(GameTooltipHeaderText)
-	FloatingBattlePetTooltip.Name:SetFontObject(GameTooltipHeaderText)
+	if BattlePetTooltip then
+		BattlePetTooltip.Name:SetFontObject(GameTooltipHeaderText)
+		FloatingBattlePetTooltip.Name:SetFontObject(GameTooltipHeaderText)
+	end
 
-	LFGListFrame.CategorySelection.CategoryButtons[1].Label:SetFontObject(GameFontNormal)
-	WorldMapFrameHomeButtonText:SetFontObject(GameFontNormal)
+	if LFGListFrame then
+		LFGListFrame.CategorySelection.CategoryButtons[1].Label:SetFontObject(GameFontNormal)
+	end
+
+	if WorldMapFrameHomeButtonText then
+		WorldMapFrameHomeButtonText:SetFontObject(GameFontNormal)
+	end
 end)
 
 hooksecurefunc("FCF_SetChatWindowFontSize", function(self, frame, size)
