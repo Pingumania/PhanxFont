@@ -112,12 +112,12 @@ Options:SetScript("OnShow", function(self)
 
 	----------
 
-	local ChatBubbleSize = LibStub("PhanxConfig-Slider"):New(self, L["Chatbubble Size"], nil, 12, 32, 1, true)
+	local ChatBubbleSize = LibStub("PhanxConfig-Slider"):New(self, L["Chatbubble Size"], nil, 12, 32, 1, false)
 	ChatBubbleSize:SetPoint("TOPLEFT", DamageScale, "BOTTOMLEFT", 0, -16)
 	ChatBubbleSize:SetPoint("TOPRIGHT", DamageScale, "BOTTOMRIGHT", 0, -16)
 
 	function ChatBubbleSize:OnValueChanged(value)
-		PhanxFontDB.chatbubblescale = value
+		PhanxFontDB.chatbubblesize = value
 		UpdatePreviews()
 	end
 
