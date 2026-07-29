@@ -1,6 +1,7 @@
-## Interface: 110200
-## Interface-Mists: 50500
-## Interface-Vanilla: 11507
+## Interface: 120007
+## Interface-Mists: 50504
+## Interface-TBC: 20506
+## Interface-Vanilla: 11508
 
 ## Title: PhanxFont
 ## Notes: Simple font replacement.
