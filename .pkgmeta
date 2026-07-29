@@ -7,7 +7,7 @@ externals:
   Libs/PhanxConfig-Slider: https://github.com/Pingumania/PhanxConfig-Slider.git
 
 manual-changelog:
-  filename: RECENT_CHANGES.md
+  filename: CHANGELOG.md
   markup-type: markdown
 
 ignore:
