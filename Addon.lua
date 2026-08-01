@@ -1,4 +1,4 @@
-﻿--[[--------------------------------------------------------------------
+--[[--------------------------------------------------------------------
 	PhanxFont
 	Simple font replacement and scaling.
 	Based on tekticles by Tekkub, which is based on ClearFont2 by Kirkburn.
