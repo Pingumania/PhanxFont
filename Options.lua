@@ -165,6 +165,7 @@ Addon:RegisterSettings("PhanxFontDB", {
 		key = "scale",
 		type = "slider",
 		title = L["Scale"],
+		tooltip = L["ScaleTooltip"],
 		default = Addon.Defaults.scale,
 		minValue = 0.5,
 		maxValue = 2,
@@ -174,6 +175,7 @@ Addon:RegisterSettings("PhanxFontDB", {
 	{
 		type = "custom",
 		title = L["Damage Font"],
+		tooltip = L["DamageFontTooltip"],
 		createControl = CreateFontRow("damage"),
 		onDefaults = ResetFont("damage"),
 	},
