@@ -14,6 +14,9 @@ _G.PhanxFont = Addon
 
 Addon.Retail = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 
+-- the resolved font files, for PhanxFont_Plugins
+Addon.Fonts = {}
+
 local function FindMediaName(mediaType, path)
 	local media = LibStub("LibSharedMedia-3.0")
 	path = path and path:lower()
@@ -77,6 +80,10 @@ function Addon:SetFonts(event, addon)
 	BOLDITALIC = BOLD
 	ITALIC     = NORMAL
 	NUMBER     = BOLD
+
+	Addon.Fonts.normal = NORMAL
+	Addon.Fonts.bold   = BOLD
+	Addon.Fonts.damage = DAMAGE
 
 	UNIT_NAME_FONT     = NORMAL
 	NAMEPLATE_FONT     = BOLD
