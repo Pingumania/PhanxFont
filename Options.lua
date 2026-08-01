@@ -9,285 +9,210 @@
 	https://github.com/phanx-wow/PhanxFont
 ----------------------------------------------------------------------]]
 
-local ADDON, Addon = ...
+local _, Addon = ...
+local L = Addon.L
 
-local L = setmetatable({}, {
-	__index = function(t, k)
-		local v = tostring(k)
-		t[k] = v
-		return v
+local SAMPLE_KEYS = {"SampleEnglish", "SampleCyrillic", "SampleChinese"}
+
+local DAMAGE_SAMPLES = {"7", "42", "396", "2.185", "86.337"}
+
+local PREVIEW_SIZE = 16
+local DAMAGE_PREVIEW_SIZE = 22
+
+local previews = {}
+
+local function SampleTexts(kind)
+	if kind == "damage" then
+		return {table.concat(DAMAGE_SAMPLES, "    ")}
 	end
+
+	local texts = {}
+	for index, key in ipairs(SAMPLE_KEYS) do
+		texts[index] = L[key]
+	end
+
+	return texts
+end
+
+local function RefreshPreview()
+	local media = LibStub("LibSharedMedia-3.0")
+
+	for kind, preview in next, previews do
+		local file = media:Fetch("font", PhanxFontDB[kind] or PhanxFontDB.normal)
+
+		if preview.Bubble then
+			preview.Bubble:SetFont(file, PhanxFontDB.chatbubblesize, "")
+		end
+
+		local width = preview:GetWidth()
+
+		for _, fontString in ipairs(preview.strings) do
+			fontString:SetFont(file, kind == "damage" and DAMAGE_PREVIEW_SIZE or PREVIEW_SIZE, "")
+
+			if width > 0 then
+				fontString:SetWidth(width)
+				fontString:SetText(fontString.sampleText)
+			end
+		end
+	end
+end
+
+local function CreateFontPreview(kind)
+	return function(panel)
+		local preview = CreateFrame("Frame", nil, panel)
+		preview:SetPoint("TOPLEFT", 30, -10)
+		preview:SetPoint("BOTTOMRIGHT", -30, 10)
+		preview.strings = {}
+
+		local centred = kind == "damage"
+
+		local previous
+		for _, text in ipairs(SampleTexts(kind)) do
+			local fontString = preview:CreateFontString(nil, "ARTWORK", "GameFontNormal")
+			fontString:SetJustifyH(centred and "CENTER" or "LEFT")
+			fontString:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
+
+			fontString:SetWordWrap(true)
+			fontString:SetNonSpaceWrap(true)
+
+			fontString.sampleText = text
+
+			if previous then
+				fontString:SetPoint("TOPLEFT", previous, "BOTTOMLEFT", 0, -6)
+			elseif centred then
+				fontString:SetPoint("CENTER")
+			else
+				fontString:SetPoint("TOPLEFT")
+			end
+
+			table.insert(preview.strings, fontString)
+			previous = fontString
+		end
+
+		previews[kind] = preview
+		preview:SetScript("OnSizeChanged", RefreshPreview)
+		RefreshPreview()
+
+		return preview
+	end
+end
+
+local function CreateBubblePreview(panel)
+	local preview = CreateFrame("Frame", nil, panel)
+	preview:SetAllPoints()
+	preview.strings = {}
+
+	local bubble = CreateFrame("Frame", nil, preview, "ChatBubbleTemplate")
+	bubble.String:SetPoint("CENTER", preview, "CENTER")
+	bubble.String:SetText(L["BubbleText"])
+	bubble.String:SetTextColor(NORMAL_FONT_COLOR:GetRGB())
+	bubble.Tail:Hide()
+
+	preview.Bubble = bubble.String
+
+	previews.bubble = preview
+	RefreshPreview()
+
+	return preview
+end
+
+local function SetFont(key, value)
+	PhanxFontDB[key] = value
+	Addon:SetFonts()
+	RefreshPreview()
+end
+
+local function CreateFontRow(key)
+	return function(rowFrame)
+		return Addon:CreateMediaDropdown(rowFrame, "font", function()
+			return PhanxFontDB[key]
+		end, function(value)
+			SetFont(key, value)
+		end)
+	end
+end
+
+local function ResetFont(key)
+	return function()
+		SetFont(key, Addon.Defaults[key])
+	end
+end
+
+Addon:RegisterSettings("PhanxFontDB", {
+	{
+		type = "custom",
+		title = L["Normal Font"],
+		createControl = CreateFontRow("normal"),
+		onDefaults = ResetFont("normal"),
+	},
+	{
+		type = "preview",
+		height = 95,
+		createPreview = CreateFontPreview("normal"),
+	},
+	{
+		type = "custom",
+		title = L["Bold Font"],
+		createControl = CreateFontRow("bold"),
+		onDefaults = ResetFont("bold"),
+	},
+	{
+		type = "preview",
+		height = 95,
+		createPreview = CreateFontPreview("bold"),
+	},
+	{
+		key = "scale",
+		type = "slider",
+		title = L["Scale"],
+		default = Addon.Defaults.scale,
+		minValue = 0.5,
+		maxValue = 2,
+		valueStep = 0.05,
+		valueFormat = "%.2f",
+	},
+	{
+		type = "custom",
+		title = L["Damage Font"],
+		createControl = CreateFontRow("damage"),
+		onDefaults = ResetFont("damage"),
+	},
+	{
+		type = "preview",
+		height = 55,
+		createPreview = CreateFontPreview("damage"),
+	},
+	{
+		key = "damagescale",
+		type = "slider",
+		title = L["Damage Scale"],
+		default = Addon.Defaults.damagescale,
+		minValue = 0.5,
+		maxValue = 4,
+		valueStep = 0.05,
+		valueFormat = "%.2f",
+	},
+	{
+		key = "chatbubblesize",
+		type = "slider",
+		title = L["Chatbubble Size"],
+		default = Addon.Defaults.chatbubblesize,
+		minValue = 12,
+		maxValue = 32,
+		valueStep = 1,
+	},
+	{
+		type = "preview",
+		height = 80,
+		createPreview = CreateBubblePreview,
+	},
 })
-if GetLocale() == "deDE" then
-	L["Normal Font"] = "Normalschrift"
-	L["Bold Font"] = "Fettschrift"
-	L["Damage Font"] = "Schadenszahlen"
-	L["Scale"] = "Größe"
-	L["Damage Scale"] = "Schadenszahlengröße"
-	L["Reload UI"] = "UI neu laden"
-	L["Apply"] = "Anwenden"
-elseif GetLocale():match("^es") then
-	L["Normal Font"] = "Fuente normal"
-	L["Bold Font"] = "Fuente en negrita"
-	L["Damage Font"] = "Cifras de daños"
-	L["Scale"] = "Tamaño"
-	L["Damage Scale"] = ""
-	L["Reload UI"] = "Recargar IU"
-	L["Apply"] = "Aplicar"
-end
 
-local Options = CreateFrame("Frame", "PhanxFontOptions", InterfaceOptionsFramePanelContainer)
-Options.name = C_AddOns.GetAddOnMetadata(ADDON, "Title") or ADDON
-Options:Hide()
-
-Options:SetScript("OnShow", function(self)
-	local Title = self:CreateFontString(nil, "ARTWORK", "GameFontNormalLarge")
-	Title:SetPoint("TOPLEFT", 16, -16)
-	Title:SetText(self.name)
-
-	local Notes = self:CreateFontString(nil, "ARTWORK", "GameFontHighlightSmall")
-	Notes:SetPoint("TOPLEFT", Title, "BOTTOMLEFT", 0, -8)
-	Notes:SetPoint("RIGHT", -32, 0)
-	Notes:SetHeight(32)
-	Notes:SetJustifyH("LEFT")
-	Notes:SetJustifyV("TOP")
-	Notes:SetText(C_AddOns.GetAddOnMetadata(ADDON, "Notes"))
-
-	local UpdatePreviews, SampleText
-
-	----------
-
-	local NormalFont = LibStub("PhanxConfig-MediaDropdown"):New(self, L["Normal Font"], nil,"font")
-	NormalFont:SetPoint("TOPLEFT", Notes, "BOTTOMLEFT", 0, -8)
-	NormalFont:SetPoint("TOPRIGHT", Notes, "BOTTOM", -8, -8)
-
-	function NormalFont:OnValueChanged(value)
-		PhanxFontDB.normal = value
-		UpdatePreviews()
-	end
-
-	----------
-
-	local BoldFont = LibStub("PhanxConfig-MediaDropdown"):New(self, L["Bold Font"], nil, "font")
-	BoldFont:SetPoint("TOPLEFT", NormalFont, "BOTTOMLEFT", 0, -16)
-	BoldFont:SetPoint("TOPRIGHT", NormalFont, "BOTTOMRIGHT", 0, -16)
-
-	function BoldFont:OnValueChanged(value)
-		PhanxFontDB.bold = value
-		UpdatePreviews()
-	end
-
-	----------
-
-	local Scale = LibStub("PhanxConfig-Slider"):New(self, L["Scale"], nil, 0.5, 2, 0.05, true)
-	Scale:SetPoint("TOPLEFT", BoldFont, "BOTTOMLEFT", 0, -16)
-	Scale:SetPoint("TOPRIGHT", BoldFont, "BOTTOMRIGHT", 0, -16)
-
-	function Scale:OnValueChanged(value)
-		PhanxFontDB.scale = value
-		UpdatePreviews()
-	end
-
-	----------
-
-	local DamageFont = LibStub("PhanxConfig-MediaDropdown"):New(self, L["Damage Font"], nil, "font")
-	DamageFont:SetPoint("TOPLEFT", Scale, "BOTTOMLEFT", 0, -16)
-	DamageFont:SetPoint("TOPRIGHT", Scale, "BOTTOMRIGHT", 0, -16)
-
-	function DamageFont:OnValueChanged(value)
-		PhanxFontDB.damage = value
-		UpdatePreviews()
-	end
-
-	----------
-
-	local DamageScale = LibStub("PhanxConfig-Slider"):New(self, L["Damage Scale"], nil, 0.5, 4, 0.05, true)
-	DamageScale:SetPoint("TOPLEFT", DamageFont, "BOTTOMLEFT", 0, -16)
-	DamageScale:SetPoint("TOPRIGHT", DamageFont, "BOTTOMRIGHT", 0, -16)
-
-	function DamageScale:OnValueChanged(value)
-		PhanxFontDB.damagescale = value
-		UpdatePreviews()
-	end
-
-	----------
-
-	local ChatBubbleSize = LibStub("PhanxConfig-Slider"):New(self, L["Chatbubble Size"], nil, 12, 32, 1, false)
-	ChatBubbleSize:SetPoint("TOPLEFT", DamageScale, "BOTTOMLEFT", 0, -16)
-	ChatBubbleSize:SetPoint("TOPRIGHT", DamageScale, "BOTTOMRIGHT", 0, -16)
-
-	function ChatBubbleSize:OnValueChanged(value)
-		PhanxFontDB.chatbubblesize = value
-		UpdatePreviews()
-	end
-
-	----------
-
-	local ReloadButton = CreateFrame("Button", "$parentReloadButton", self, "UIPanelButtonTemplate")
-	ReloadButton:SetPoint("BOTTOMLEFT", 16, 16)
-	ReloadButton:SetSize(96, 22)
-	ReloadButton:SetText(L["Reload UI"])
-	ReloadButton:SetScript("OnClick", ReloadUI)
-
-	local ApplyButton = CreateFrame("Button", "$parentApplyButton", self, "UIPanelButtonTemplate")
-	ApplyButton:SetPoint("BOTTOMLEFT", ReloadButton, "BOTTOMRIGHT")
-	ApplyButton:SetSize(96, 22)
-	ApplyButton:SetText(L["Apply"])
-	ApplyButton:SetScript("OnClick", function() Addon:SetFonts() end)
-
-	----------
-
-	SampleText = self:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
-	SampleText:SetPoint("TOPLEFT", ChatBubbleSize, "BOTTOMLEFT", 0, -16)
-	SampleText:SetPoint("TOPRIGHT", ChatBubbleSize, "BOTTOMRIGHT", 0, -16)
-	SampleText:SetPoint("BOTTOMLEFT", ReloadButton, "TOPLEFT", 0, 16)
-	SampleText:SetJustifyH("LEFT")
-	SampleText:SetText("The quick brown fox jumps over the lazy dog.\nБыстрая коричневая лиса перепрыгивает через ленивую собаку.\n敏捷的棕狐狸跳过了懒惰的狗。\n1 2 3 4 5 6 7 8 9 0\nÁá Ää Éé Íí Ññ Óó Öö ß Úú Üü\n¡! ¿? # $ € % & ° – — ●")
-
-	----------
-
-	local ScrollBG = CreateFrame("Frame", nil, self, BackdropTemplateMixin and "BackdropTemplate")
-	ScrollBG:SetPoint("TOPLEFT", Notes, "BOTTOM", 8, 0)
-	ScrollBG:SetPoint("BOTTOMRIGHT", self, -16, 16)
-	ScrollBG:SetBackdrop({ bgFile = "Interface\\BUTTONS\\WHITE8X8", tile = true, tileSize = 8, edgeFile = "Interface\\Tooltips\\UI-Tooltip-Border", edgeSize = 16, insets = { left = 4, right = 4, top = 4, bottom = 4 }})
-	ScrollBG:SetBackdropColor(0, 0, 0, 0.4)
-	ScrollBG:SetBackdropBorderColor(1, 1, 1, 0.6)
-
-	local ScrollFrame = CreateFrame("ScrollFrame", "$parentScrollFrame", ScrollBG, "UIPanelScrollFrameTemplate")
-	ScrollFrame:SetPoint("TOPLEFT", ScrollBG, 5, -5)
-	ScrollFrame:SetPoint("BOTTOMRIGHT", ScrollBG, -27, 5)
-
-	local ScrollBarBG = ScrollFrame.ScrollBar:CreateTexture(nil, "BACKGROUND")
-	ScrollBarBG:SetAllPoints(true)
-	ScrollBarBG:SetTexture(0, 0, 0, 0.4)
-
-	local ScrollChild = CreateFrame("Frame", "$parentScrollChildFrame", ScrollFrame)
-	ScrollChild:SetPoint("TOPLEFT")
-	ScrollChild:SetWidth(ScrollFrame:GetWidth())
-	ScrollChild:SetHeight(500) -- temp
---[[
-	local ScrollChildBG = ScrollChild:CreateTexture(nil, "BACKGROUND")
-	ScrollChildBG:SetAllPoints(true)
-	ScrollChildBG:SetTexture(0, 0, 0, 0.2)
-]]
-	ScrollFrame:SetScrollChild(ScrollChild)
-	ScrollFrame:SetScript("OnSizeChanged", function(_, width, height)
-		ScrollChild:SetWidth(width)
+for _, key in ipairs({"scale", "damagescale", "chatbubblesize"}) do
+	Addon:RegisterOptionCallback(key, function()
+		Addon:SetFonts()
+		RefreshPreview()
 	end)
-
-	-----
-
-	local fonts = {
-		"GameFontNormal",
-		"GameFontHighlight",
-		"GameFontDisable",
-		"GameFontNormalSmall",
-		"GameFontHighlightExtraSmall",
-		"GameFontHighlightMedium",
-		"GameFontNormalLarge",
-		"GameFontNormalHuge",
-		"GameFont_Gigantic",
-		"BossEmoteNormalHuge",
-		"NumberFontNormal",
-		"NumberFontNormalSmall",
-		"NumberFontNormalLarge",
-		"NumberFontNormalHuge",
-		"ChatFontNormal",
-		"ChatFontSmall",
-		"DialogButtonNormalText",
-		"ZoneTextFont",
-		"SubZoneTextFont",
-		"PVPInfoTextFont",
-		"QuestFont_Super_Huge",
-		"QuestFont_Shadow_Small",
-		"ErrorFont",
-		"TextStatusBarText",
-		"CombatLogFont",
-		"GameTooltipText",
-		"GameTooltipTextSmall",
-		"GameTooltipHeaderText",
-		"CombatTextFont"
-	}
-	local bolds = {
-		GameFontNormalHuge = true,
-		GameFont_Gigantic = true,
-		BossEmoteNormalHuge = true,
-		NumberFontNormal = true,
-		NumberFontNormalSmall = true,
-		NumberFontNormalLarge = true,
-		NumberFontNormalHuge = true,
-		ZoneTextFont = true,
-		SubZoneTextFont = true,
-		QuestFont_Super_Huge = true,
-		TextStatusBarText = true,
-		GameTooltipHeaderText = true,
-	}
-
-	local combat = {
-		CombatTextFont = true
-	}
-
-	for i = 1, #fonts do
-		local font = fonts[i]
-		local fs = ScrollChild:CreateFontString(nil, "ARTWORK")
-		if i == 1 then
-			fs:SetPoint("TOPLEFT", ScrollChild, 5, -5)
-		else
-			fs:SetPoint("TOPLEFT", fonts[i-1], "BOTTOMLEFT", 0, -5)
-		end
-		fs:SetFontObject(font)
-		fs:SetText(font == "CombatTextFont" and "86.337" or font)
-		fs.font = font
-		fonts[i] = fs
-	end
-
-	function UpdatePreviews(width)
-		-- print(strjoin(" | ", "UpdatePreviews", PhanxFontDB.normal, PhanxFontDB.bold, PhanxFontDB.scale))
-		local Media = LibStub("LibSharedMedia-3.0")
-		local NORMAL = Media:Fetch("font", PhanxFontDB.normal)
-		local BOLD = Media:Fetch("font", PhanxFontDB.bold)
-		local DAMAGE = Media:Fetch("font", PhanxFontDB.damage)
-		SampleText:SetFont(NORMAL, 14 * PhanxFontDB.scale)
-
-		local height = 5
-		for i = 1, #fonts do
-			local fs = fonts[i]
-			local file = bolds[fs.font] and BOLD or combat[fs.font] and DAMAGE or NORMAL
-			local _, size, flag = fs:GetFont()
-			fs:SetFont(file, size, flag)
-			height = height + fs:GetHeight() + 5
-		end
-		ScrollChild:SetHeight(height)
-	end
-
-	function self:refresh()
-		NormalFont:SetValue(PhanxFontDB.normal)
-		BoldFont:SetValue(PhanxFontDB.bold)
-		DamageFont:SetValue(PhanxFontDB.damage)
-		Scale:SetValue(PhanxFontDB.scale)
-		DamageScale:SetValue(PhanxFontDB.damagescale)
-		ChatBubbleSize:SetValue(PhanxFontDB.chatbubblesize)
-		UpdatePreviews(width)
-	end
-
-	self:SetScript("OnShow", nil)
-	self:refresh()
-end)
-
-if InterfaceOptions_AddCategory then
-	InterfaceOptions_AddCategory(Options)
-else
-	local category, layout = Settings.RegisterCanvasLayoutCategory(Options, Options.name)
-	Settings.RegisterAddOnCategory(category)
-	Options.settingsCategory = category
 end
 
-SLASH_PHANXFONT1 = "/font"
-SlashCmdList.PHANXFONT = function()
-	if InterfaceOptionsFrame_OpenToCategory then
-		InterfaceOptionsFrame_OpenToCategory(Options)
-		InterfaceOptionsFrame_OpenToCategory(Options)
-	else
-		Settings.OpenToCategory(Options.settingsCategory.ID)
-	end
-end
+Addon:RegisterSettingsSlash("/font", "/phanxfont")

@@ -14,18 +14,34 @@ _G.PhanxFont = Addon
 
 Addon.Retail = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 
-PhanxFontDB = {
-	normal = "Lato",
-	bold   = "Lato Black",
-	damage = "Lato Black",
+local function FindMediaName(mediaType, path)
+	local media = LibStub("LibSharedMedia-3.0")
+	path = path and path:lower()
+
+	for _, name in ipairs(media:List(mediaType)) do
+		local candidate = media:Fetch(mediaType, name)
+		if candidate and candidate:lower() == path then
+			return name
+		end
+	end
+end
+
+local DEFAULT_FONT = LibStub("LibSharedMedia-3.0"):GetDefault("font")
+
+Addon.Defaults = {
+	normal = DEFAULT_FONT,
+	bold   = DEFAULT_FONT,
+	damage = FindMediaName("font", DAMAGE_TEXT_FONT) or DEFAULT_FONT,
 	scale  = 1,
 	damagescale = 2,
 	chatbubblesize = 16,
 }
 
-local NORMAL       = [[Interface\AddOns\PhanxMedia\font\Lato.ttf]]
-local BOLD         = [[Interface\AddOns\PhanxMedia\font\Lato-Black.otf]]
-local DAMAGE       = [[Interface\AddOns\PhanxMedia\font\Lato-Black.otf]]
+PhanxFontDB = CopyTable(Addon.Defaults)
+
+local NORMAL       = LibStub("LibSharedMedia-3.0"):Fetch("font", DEFAULT_FONT)
+local BOLD         = NORMAL
+local DAMAGE       = NORMAL
 local BOLDITALIC   = BOLD
 local ITALIC       = NORMAL
 local NUMBER       = BOLD
