@@ -217,4 +217,177 @@ for _, key in ipairs({"scale", "damagescale", "chatbubblesize"}) do
 	end)
 end
 
+------------------------------------------------------------------------
+
+local MIN_FONT_SIZE = 6
+local MAX_FONT_SIZE = 72
+local ROW_HEIGHT = 32
+local SLIDER_WIDTH = 200
+
+-- the template anchors its value label 25 points right of the slider, which is itself inset 19
+-- from the frame's edge, so the text lands outside the frame and needs room reserved for it
+local SLIDER_VALUE_INSET = 46
+local SLIDER_VALUE_LABEL = MinimalSliderWithSteppersMixin.Label.Right
+
+local SLIDER_FORMATTERS = {
+	[SLIDER_VALUE_LABEL] = function(value)
+		return tostring(math.floor(value))
+	end,
+}
+
+local sizeList
+
+local function SortedFontNames()
+	local names = {}
+	for name in next, Addon.Sizes do
+		if not Addon.OwnSetting[name] then
+			table.insert(names, name)
+		end
+	end
+
+	table.sort(names)
+	return names
+end
+
+local function CurrentSize(name)
+	return Addon:GetFontSize(name) or MIN_FONT_SIZE
+end
+
+-- a handful of the game's own fonts are far larger than anything worth offering as a default
+-- ceiling, so those rows stretch to fit rather than every row carrying their range
+local function SizeRange(name)
+	local largest = math.max(MAX_FONT_SIZE, Addon.Sizes[name] or 0, CurrentSize(name))
+	return MIN_FONT_SIZE, math.ceil(largest)
+end
+
+local function InitSizeRow(row, data)
+	if not row.Label then
+		row.Label = row:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+		row.Label:SetPoint("LEFT", 8, 0)
+		row.Label:SetJustifyH("LEFT")
+		row.Label:SetWordWrap(false)
+
+		row.Slider = CreateFrame("Frame", nil, row, "MinimalSliderWithSteppersTemplate")
+		row.Slider:SetWidth(SLIDER_WIDTH)
+		row.Slider:SetPoint("RIGHT", -SLIDER_VALUE_INSET, 0)
+
+		row.Label:SetPoint("RIGHT", row.Slider, "LEFT", -10, 0)
+
+		-- registered once per recycled row, so the current name is read when the value changes
+		-- rather than captured here
+		row.Slider:RegisterCallback(MinimalSliderWithSteppersMixin.Event.OnValueChanged, function(_, value)
+			if row.name and not row.settingUp then
+				PhanxFontDB.sizes[row.name] = value
+				Addon:SetFonts()
+			end
+		end, row)
+	end
+
+	row.name = data.name
+	row.Label:SetText(data.name)
+
+	local minValue, maxValue = SizeRange(data.name)
+
+	row.settingUp = true
+	row.Slider:Init(CurrentSize(data.name), minValue, maxValue, maxValue - minValue, SLIDER_FORMATTERS)
+	row.settingUp = nil
+end
+
+local function RefreshSizeList()
+	if not sizeList then return end
+
+	local filter = sizeList.Search:GetText():lower()
+	local provider = CreateDataProvider()
+
+	for _, name in ipairs(sizeList.names) do
+		if filter == "" or name:lower():find(filter, 1, true) then
+			provider:Insert({ name = name })
+		end
+	end
+
+	sizeList.ScrollBox:SetDataProvider(provider)
+end
+
+local function CreateSizeCanvas(canvas)
+	local description = canvas:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+	description:SetPoint("TOPLEFT", 16, -16)
+	description:SetPoint("TOPRIGHT", -16, -16)
+	description:SetJustifyH("LEFT")
+	description:SetText(L["FontSizesDescription"])
+
+	-- the template's hover highlight anchors to its parent's parent, expecting to sit in a settings
+	-- row, so it needs a row of its own or it lights up the whole page
+	local toggleRow = CreateFrame("Frame", nil, canvas)
+	toggleRow:SetPoint("TOPLEFT", description, "BOTTOMLEFT", 0, -12)
+	toggleRow:SetPoint("TOPRIGHT", description, "BOTTOMRIGHT", 0, -12)
+	toggleRow:SetHeight(30)
+
+	local blizzardSizes = CreateFrame("CheckButton", nil, toggleRow, "SettingsCheckboxTemplate")
+	blizzardSizes:SetPoint("LEFT")
+	-- called with no arguments, after OnEnter has made SettingsTooltip the owner
+	blizzardSizes:Init(PhanxFontDB.blizzardsizes, function()
+		GameTooltip_AddNormalLine(SettingsTooltip, L["DisableSizeOverridesTooltip"])
+	end)
+	blizzardSizes:RegisterCallback(SettingsCheckboxMixin.Event.OnValueChanged, function(_, checked)
+		PhanxFontDB.blizzardsizes = checked
+		Addon:SetFonts()
+		RefreshSizeList()
+	end, blizzardSizes)
+
+	blizzardSizes.HoverBackground:ClearAllPoints()
+	blizzardSizes.HoverBackground:SetPoint("TOPLEFT", toggleRow)
+	blizzardSizes.HoverBackground:SetPoint("BOTTOMRIGHT", toggleRow)
+
+	local blizzardLabel = toggleRow:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+	blizzardLabel:SetPoint("LEFT", blizzardSizes, "RIGHT", 6, 0)
+	blizzardLabel:SetText(L["DisableSizeOverrides"])
+
+	-- one container, so the search box and the list resolve to the same width whatever size the
+	-- canvas ends up
+	local body = CreateFrame("Frame", nil, canvas)
+	body:SetPoint("TOPLEFT", toggleRow, "BOTTOMLEFT", 8, -8)
+	body:SetPoint("BOTTOMRIGHT", canvas, "BOTTOMRIGHT", -16, 16)
+
+	local search = CreateFrame("EditBox", nil, body, "SearchBoxTemplate")
+	search:SetPoint("TOPLEFT")
+	search:SetPoint("TOPRIGHT")
+	search:SetHeight(22)
+	search:SetScript("OnTextChanged", function(self)
+		SearchBoxTemplate_OnTextChanged(self)
+		RefreshSizeList()
+	end)
+
+	local scrollBox = CreateFrame("Frame", nil, body, "WowScrollBoxList")
+	scrollBox:SetPoint("TOPLEFT", search, "BOTTOMLEFT", 0, -10)
+	scrollBox:SetPoint("BOTTOMRIGHT", body, "BOTTOMRIGHT", -24, 0)
+
+	local scrollBar = CreateFrame("EventFrame", nil, body, "MinimalScrollBar")
+	scrollBar:SetPoint("TOPLEFT", scrollBox, "TOPRIGHT", 8, 0)
+	scrollBar:SetPoint("BOTTOMLEFT", scrollBox, "BOTTOMRIGHT", 8, 0)
+
+	local view = CreateScrollBoxListLinearView()
+	view:SetElementExtent(ROW_HEIGHT)
+	view:SetElementInitializer("Frame", InitSizeRow)
+	ScrollUtil.InitScrollBoxListWithScrollBar(scrollBox, scrollBar, view)
+
+	sizeList = {
+		Search = search,
+		ScrollBox = scrollBox,
+		BlizzardSizes = blizzardSizes,
+		names = SortedFontNames(),
+	}
+
+	canvas:SetDefaultsHandler(function()
+		wipe(PhanxFontDB.sizes)
+		PhanxFontDB.blizzardsizes = Addon.Defaults.blizzardsizes
+		blizzardSizes:SetValue(PhanxFontDB.blizzardsizes)
+		Addon:SetFonts()
+		RefreshSizeList()
+	end)
+
+	RefreshSizeList()
+end
+
+Addon:RegisterSubSettingsCanvas(L["Font Sizes"], CreateSizeCanvas)
+
 Addon:RegisterSettingsSlash("/font", "/phanxfont")

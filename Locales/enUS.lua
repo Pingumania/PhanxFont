@@ -13,3 +13,7 @@ L["SampleCyrillic"] = "Быстрая коричневая лиса перепр
 L["SampleChinese"] = "敏捷的棕狐狸跳过了懒惰的狗。"
 L["DamageFontTooltip"] = "Only takes effect after restarting the game."
 L["ScaleTooltip"] = "Affects the normal and bold fonts."
+L["DisableSizeOverrides"] = "Disable PhanxFont size overrides"
+L["DisableSizeOverridesTooltip"] = "Keep every font at the size the game gives it, instead of the sizes PhanxFont prefers. The chat bubble size and any size you set yourself are still used."
+L["Font Sizes"] = "Font Sizes"
+L["FontSizesDescription"] = "Set the size of any font the game uses. Leave a font alone to keep the size PhanxFont gives it."

@@ -38,9 +38,59 @@ Addon.Defaults = {
 	scale  = 1,
 	damagescale = 2,
 	chatbubblesize = 16,
+	blizzardsizes = false,
+	sizes = {},
 }
 
 PhanxFontDB = CopyTable(Addon.Defaults)
+
+-- the saved variables replace the table above once they load, which happens after this file runs,
+-- so anything added to the defaults since the player last logged in has to be filled in later
+local function ApplyDefaults()
+	for key, value in next, Addon.Defaults do
+		if PhanxFontDB[key] == nil then
+			PhanxFontDB[key] = type(value) == "table" and CopyTable(value) or value
+		end
+	end
+end
+
+--[[ PhanxFont.OwnSetting
+Font objects sized by a setting of their own rather than by PhanxFont's opinion. Turning the
+overrides off leaves them alone, and the font size list skips them.
+--]]
+Addon.OwnSetting = {
+	ChatBubbleFont = true,
+}
+
+local KEEP_OWN_SIZE = Addon.OwnSetting
+
+--[[ PhanxFont.Sizes
+The size each font object is given by the game, keyed by the font object's global name and filled in
+as PhanxFont walks them. Used by the options to list what can be resized, and to put a size back.
+--]]
+Addon.Sizes = {}
+
+--[[ PhanxFont.Preferred
+The size PhanxFont would give each font object, which is the game's own size for everything it does
+not have an opinion about.
+--]]
+Addon.Preferred = {}
+
+--[[ PhanxFont:GetFontSize(_name_)
+The size the font object named _name_ ends up at: the size you set for it, or the game's own size
+while the overrides are switched off, or the size PhanxFont prefers.
+--]]
+function Addon:GetFontSize(name)
+	if PhanxFontDB.sizes[name] then
+		return PhanxFontDB.sizes[name]
+	end
+
+	if PhanxFontDB.blizzardsizes and not KEEP_OWN_SIZE[name] then
+		return Addon.Sizes[name]
+	end
+
+	return Addon.Preferred[name] or Addon.Sizes[name]
+end
 
 local NORMAL       = LibStub("LibSharedMedia-3.0"):Fetch("font", DEFAULT_FONT)
 local BOLD         = NORMAL
@@ -59,6 +109,19 @@ function Addon:SetFont(obj, font, size, style, r, g, b, sr, sg, sb, sox, soy)
 	if not style then
 		style = select(3, obj:GetFont())
 	end
+
+	-- the parsed list runs before the overrides, so the first size a named object is given is the
+	-- one the game itself uses
+	local name = obj.GetName and obj:GetName()
+	if name then
+		if Addon.Sizes[name] == nil then
+			Addon.Sizes[name] = size
+		end
+
+		Addon.Preferred[name] = size
+		size = Addon:GetFontSize(name) or size
+	end
+
 	obj:SetFont(font, floor(size * PhanxFontDB.scale + 0.5), style or "")
 	if sr and sg and sb then
 		obj:SetShadowColor(sr, sg, sb)
@@ -74,6 +137,8 @@ function Addon:SetFont(obj, font, size, style, r, g, b, sr, sg, sb, sox, soy)
 end
 
 function Addon:SetFonts(event, addon)
+	ApplyDefaults()
+
 	NORMAL     = LibStub("LibSharedMedia-3.0"):Fetch("font", PhanxFontDB.normal)
 	BOLD       = LibStub("LibSharedMedia-3.0"):Fetch("font", PhanxFontDB.bold)
 	DAMAGE     = LibStub("LibSharedMedia-3.0"):Fetch("font", PhanxFontDB.damage)
