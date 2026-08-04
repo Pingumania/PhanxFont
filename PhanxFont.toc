@@ -24,5 +24,6 @@ Locales\deDE.lua
 Locales\esES.lua
 Locales\esMX.lua
 
+FontObjects.lua
 Addon.lua
 Options.lua

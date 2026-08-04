@@ -62,7 +62,9 @@ Addon.OwnSetting = {
 	ChatBubbleFont = true,
 }
 
-local KEEP_OWN_SIZE = Addon.OwnSetting
+local KEEP_OWN_SIZE = setmetatable({}, { __index = function(_, name)
+	return Addon.OwnSetting[name] or Addon.FixedSize[name]
+end })
 
 --[[ PhanxFont.Sizes
 The size each font object is given by the game, keyed by the font object's global name and filled in
@@ -71,10 +73,34 @@ as PhanxFont walks them. Used by the options to list what can be resized, and to
 Addon.Sizes = {}
 
 --[[ PhanxFont.Preferred
-The size PhanxFont would give each font object, which is the game's own size for everything it does
-not have an opinion about.
+The size PhanxFont gives a font object instead of the game's own. Anything not listed keeps the size
+the game gave it.
 --]]
-Addon.Preferred = {}
+Addon.Preferred = {
+	AchievementDescriptionFont = 12,
+	AchievementFont_Small      = 12,
+	BossEmoteNormalHuge        = 27,
+	ErrorFont                  = 20,
+	FriendsFont_Large          = 15,
+	FriendsFont_Normal         = 13,
+	FriendsFont_Small          = 13,
+	FriendsFont_UserText       = 13,
+	GameTooltipHeader          = 15,
+	InvoiceFont_Med            = 13,
+	InvoiceFont_Small          = 11,
+	NumberFont_GameNormal      = 12,
+	ObjectiveTrackerFont12     = 13,
+	QuestFontNormalSmall       = 13,
+	ReputationDetailFont       = 12,
+	SpellFont_Small            = 11,
+	SystemFont_Outline_Small   = 12,
+	SystemFont_Shadow_Med1     = 13,
+	SystemFont_Shadow_Small    = 12,
+	SystemFont_Shadow_Small2   = 12,
+	Tooltip_Med                = 13,
+	Tooltip_Small              = 13,
+	WorldMapTextFont           = 27,
+}
 
 --[[ PhanxFont:GetFontSize(_name_)
 The size the font object named _name_ ends up at: the size you set for it, or the game's own size
@@ -101,38 +127,94 @@ local NUMBER       = BOLD
 
 ------------------------------------------------------------------------
 
-function Addon:SetFont(obj, font, size, style, r, g, b, sr, sg, sb, sox, soy)
-	if not obj then return end
-	if not size then
-		size = select(2, obj:GetFont())
-	end
-	if not style then
-		style = select(3, obj:GetFont())
+--[[ PhanxFont.Roles
+Which replacement font each object gets, keyed by the font object's global name. Read from the file
+the game gave it, on the first walk, before PhanxFont has replaced anything.
+--]]
+Addon.Roles = {}
+
+local FONT_ROLES = {
+	["fonts\\frizqt__.ttf"]     = "normal",
+	["fonts\\frizqt___cyr.ttf"] = "normal",
+	["fonts\\2002.ttf"]         = "normal",
+	["fonts\\arkai_t.ttf"]      = "normal",
+	["fonts\\blei00d.ttf"]      = "normal",
+	["fonts\\morpheus.ttf"]     = "bold",
+	["fonts\\morpheus_cyr.ttf"] = "bold",
+	["fonts\\2002b.ttf"]        = "bold",
+	["fonts\\arkai_c.ttf"]      = "bold",
+	["fonts\\bkai00m.ttf"]      = "bold",
+	["fonts\\arialn.ttf"]       = "bold",
+	["fonts\\skurri.ttf"]       = "damage",
+	["fonts\\skurri_cyr.ttf"]   = "damage",
+}
+
+local OWN_SIZE = {
+	ChatBubbleFont = function() return PhanxFontDB.chatbubblesize end,
+}
+
+--[[ PhanxFont:SetFont(_object_, _font_, _size_)
+Gives _object_ the _font_ file at _size_, keeping the outline, colour and shadow the game gave it.
+--]]
+function Addon:SetFont(object, font, size)
+	if not object then return end
+
+	local current, height, flags = object:GetFont()
+	if not (font or current) then return end
+
+	object:SetFont(font or current, floor((size or height) * PhanxFontDB.scale + 0.5), flags)
+end
+
+local function Record(name, object)
+	local font, height = object:GetFont()
+	if not font then return end
+
+	if Addon.Roles[name] == nil then
+		Addon.Roles[name] = FONT_ROLES[font:lower()] or "normal"
 	end
 
-	-- the parsed list runs before the overrides, so the first size a named object is given is the
-	-- one the game itself uses
-	local name = obj.GetName and obj:GetName()
-	if name then
-		if Addon.Sizes[name] == nil then
-			Addon.Sizes[name] = size
+	if Addon.Sizes[name] == nil then
+		Addon.Sizes[name] = height
+	end
+
+	return true
+end
+
+local function Restyle(name, object)
+	if not Record(name, object) then return end
+
+	local font, height, flags = object:GetFont()
+
+	if KEEP_OWN_SIZE[name] then
+		local own = OWN_SIZE[name]
+		object:SetFont(Addon.Fonts[Addon.Roles[name]] or font, own and own() or height, flags)
+		return
+	end
+
+	local size = Addon:GetFontSize(name) or height
+
+	object:SetFont(Addon.Fonts[Addon.Roles[name]] or font, floor(size * PhanxFontDB.scale + 0.5), flags)
+end
+
+local function IsFontObject(object)
+	if type(object) ~= "table" then return end
+	if not (object.GetFont and object.CopyFontObject) then return end
+	if object.GetFrameLevel or object.SetText then return end
+
+	local ok, objectType = pcall(object.GetObjectType, object)
+	return ok and objectType == "Font"
+end
+
+local function RestyleAll()
+	for name, isFamily in pairs(Addon.Objects) do
+		local object = _G[name]
+		if IsFontObject(object) then
+			if isFamily or PhanxFontDB.sizes[name] then
+				Restyle(name, object)
+			else
+				Record(name, object)
+			end
 		end
-
-		Addon.Preferred[name] = size
-		size = Addon:GetFontSize(name) or size
-	end
-
-	obj:SetFont(font, floor(size * PhanxFontDB.scale + 0.5), style or "")
-	if sr and sg and sb then
-		obj:SetShadowColor(sr, sg, sb)
-	end
-	if sox and soy then
-		obj:SetShadowOffset(sox, soy)
-	end
-	if r and g and b then
-		obj:SetTextColor(r, g, b)
-	elseif r then
-		obj:SetAlpha(r)
 	end
 end
 
@@ -155,208 +237,7 @@ function Addon:SetFonts(event, addon)
 	DAMAGE_TEXT_FONT   = DAMAGE
 	STANDARD_TEXT_FONT = NORMAL
 
-	-- Parsed from Fonts.xml and SharedFonts.xml
-	self:SetFont(AchievementFont_Small,                     NORMAL, 10, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(ChatBubbleFont,                            NORMAL, 13, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(CoreAbilityFont,                           NORMAL, 32, "", 0.1, 0.1, 0.1, nil, nil, nil, nil, nil)
-	self:SetFont(DestinyFontHuge,                           NORMAL, 32, "", 0.1, 0.1, 0.1, nil, nil, nil, nil, nil)
-	self:SetFont(DestinyFontLarge,                          NORMAL, 18, "", 0.1, 0.1, 0.1, nil, nil, nil, nil, nil)
-	self:SetFont(DestinyFontMed,                            NORMAL, 14, "", 0.1, 0.1, 0.1, nil, nil, nil, nil, nil)
-	self:SetFont(Fancy12Font,                               NORMAL, 12, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Fancy14Font,                               NORMAL, 14, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Fancy16Font,                               NORMAL, 16, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Fancy18Font,                               NORMAL, 18, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Fancy20Font,                               NORMAL, 20, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Fancy22Font,                               NORMAL, 22, "", 1, .82, 0, nil, nil, nil, nil, nil)
-	self:SetFont(Fancy24Font,                               NORMAL, 24, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Fancy27Font,                               NORMAL, 27, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Fancy30Font,                               NORMAL, 30, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Fancy32Font,                               NORMAL, 32, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Fancy36Font,                               NORMAL, 36, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Fancy40Font,                               NORMAL, 40, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Fancy48Font,                               NORMAL, 48, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(FriendsFont_11,                            NORMAL, 11, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(FriendsFont_Large,                         NORMAL, 14, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(FriendsFont_Normal,                        NORMAL, 12, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(FriendsFont_Small,                         NORMAL, 10, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(FriendsFont_UserText,                      NORMAL, 11, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(Game10Font_o1,                             NORMAL, 10, "OUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game11Font_o1,                             NORMAL, 11, "OUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game11Font_Shadow,                         NORMAL, 11, "", nil, nil, nil, 0, 0, 0, nil, nil)
-	self:SetFont(Game11Font,                                NORMAL, 11, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game120Font,                               NORMAL, 120, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game12Font_o1,                             NORMAL, 12, "OUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game12Font,                                NORMAL, 12, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game13Font_o1,                             NORMAL, 13, "OUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game13Font,                                NORMAL, 13, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game13FontShadow,                          NORMAL, 13, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(Game15Font_o1,                             NORMAL, 15, "OUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game15Font_Shadow,                         NORMAL, 15, "", nil, nil, nil, 0, 0, 0, nil, nil)
-	self:SetFont(Game15Font,                                NORMAL, 15, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game16Font,                                NORMAL, 16, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game17Font_Shadow,                         NORMAL, 17, "", nil, nil, nil, 0, 0, 0, nil, nil)
-	self:SetFont(Game18Font,                                NORMAL, 18, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game19Font,                                NORMAL, 19, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(Game20Font,                                NORMAL, 20, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game21Font,                                NORMAL, 21, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(Game22Font,                                NORMAL, 22, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(Game24Font,                                NORMAL, 24, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game27Font,                                NORMAL, 27, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game30Font,                                NORMAL, 30, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game32Font_Shadow2,                        NORMAL, 32, "", nil, nil, nil, 0, 0, 0, nil, nil)
-	self:SetFont(Game32Font,                                NORMAL, 32, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game36Font_Shadow2,                        NORMAL, 36, "", nil, nil, nil, 0, 0, 0, nil, nil)
-	self:SetFont(Game36Font,                                NORMAL, 36, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game40Font_Shadow2,                        NORMAL, 40, "", nil, nil, nil, 0, 0, 0, nil, nil)
-	self:SetFont(Game40Font,                                NORMAL, 40, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game42Font,                                NORMAL, 42, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game46Font_Shadow2,                        NORMAL, 46, "", nil, nil, nil, 0, 0, 0, nil, nil)
-	self:SetFont(Game46Font,                                NORMAL, 46, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game48Font,                                NORMAL, 48, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game48FontShadow,                          NORMAL, 48, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(Game52Font_Shadow2,                        NORMAL, 52, "", nil, nil, nil, 0, 0, 0, nil, nil)
-	self:SetFont(Game58Font_Shadow2,                        NORMAL, 58, "", nil, nil, nil, 0, 0, 0, nil, nil)
-	self:SetFont(Game60Font,                                NORMAL, 60, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Game69Font_Shadow2,                        NORMAL, 69, "", nil, nil, nil, 0, 0, 0, nil, nil)
-	self:SetFont(Game72Font_Shadow,                         NORMAL, 72, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(Game72Font,                                NORMAL, 72, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(GameFont_Gigantic,                         NORMAL, 32, "", 1.0, 0.82, 0, 0.0, 0.0, 0.0, 1, -1)
-	self:SetFont(GameTooltipHeader,                         NORMAL, 14, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(InvoiceFont_Med,                           NORMAL, 12, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(InvoiceFont_Small,                         NORMAL, 10, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(MailFont_Large,                            NORMAL, 15, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Number11Font,                              NORMAL, 11, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Number12Font_o1,                           NORMAL, 12, "OUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Number12Font,                              NORMAL, 12, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Number12FontOutline,                       NORMAL, 12, "OUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Number13Font,                              NORMAL, 13, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Number15Font,                              NORMAL, 15, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Number16Font,                              NORMAL, 16, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Number18Font,                              NORMAL, 18, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(NumberFont_GameNormal,                     NORMAL, 10, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(NumberFont_Normal_Med,                     NORMAL, 14, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(NumberFont_Outline_Huge,                   NORMAL, 30, "OUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(NumberFont_Outline_Large,                  NORMAL, 16, "OUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(NumberFont_Outline_Med,                    NORMAL, 14, "OUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(NumberFont_OutlineThick_Mono_Small,        NORMAL, 12, "OUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(NumberFont_Shadow_Large,                   NORMAL, 20, "", nil, nil, nil, 0, 0, 0, nil, nil)
-	self:SetFont(NumberFont_Shadow_Med,                     NORMAL, 14, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(NumberFont_Shadow_Small,                   NORMAL, 12, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(NumberFont_Shadow_Tiny,                    NORMAL, 10, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(NumberFont_Small,                          NORMAL, 12, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(ObjectiveTrackerFont12,                    NORMAL, 12, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(ObjectiveTrackerFont13,                    NORMAL, 13, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(ObjectiveTrackerFont14,                    NORMAL, 14, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(ObjectiveTrackerFont15,                    NORMAL, 15, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(ObjectiveTrackerFont16,                    NORMAL, 16, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(ObjectiveTrackerFont17,                    NORMAL, 17, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(ObjectiveTrackerFont18,                    NORMAL, 18, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(ObjectiveTrackerFont19,                    NORMAL, 19, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(ObjectiveTrackerFont20,                    NORMAL, 20, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(ObjectiveTrackerFont21,                    NORMAL, 21, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(ObjectiveTrackerFont22,                    NORMAL, 22, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(OrderHallTalentRowFont,                    NORMAL, 18, "", 0.9, 0.8, 0.5, nil, nil, nil, nil, nil)
-	self:SetFont(PriceFont,                                 NORMAL, 14, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(QuestFont_30,                              NORMAL, 30, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(QuestFont_39,                              NORMAL, 39, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(QuestFont_Enormous,                        NORMAL, 30, "", 1, .82, 0, nil, nil, nil, nil, nil)
-	self:SetFont(QuestFont_Huge,                            NORMAL, 18, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(QuestFont_Large,                           NORMAL, 15, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(QuestFont_Outline_Huge,                    NORMAL, 18, "OUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(QuestFont_Shadow_Small,                    NORMAL, 14, "", nil, nil, nil, 0.49, 0.35, 0.05, 1, -1)
-	self:SetFont(QuestFont_Super_Huge_Outline,              NORMAL, 24, "OUTLINE", 1, .82, 0, nil, nil, nil, nil, nil)
-	self:SetFont(QuestFont_Super_Huge,                      NORMAL, 24, "", 1, .82, 0, nil, nil, nil, nil, nil)
-	self:SetFont(ReputationDetailFont,                      NORMAL, 10, "", 1.0, 1.0, 1.0, 0.0, 0.0, 0.0, 1, -1)
-	self:SetFont(SpellFont_Small,                           NORMAL, 10, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SplashHeaderFont,                          NORMAL, 24, "", 1, .82, 0, 0, 0, 0, 1, -2)
-	self:SetFont(System_IME,                                NORMAL, 16, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(System15Font,                              NORMAL, 15, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_Huge1_Outline,                  NORMAL, 20, "OUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_Huge1,                          NORMAL, 20, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_Huge2,                          NORMAL, 24, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_Huge4,                          NORMAL, 27, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_InverseShadow_Small,            NORMAL, 10, "", nil, nil, nil, .4, .4, .4, 1, -1)
-	self:SetFont(SystemFont_Large,                          NORMAL, 16, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_Large2,                         NORMAL, 18, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_LargeNamePlate,                 NORMAL, 12, "", nil, nil, nil, 0, 0, 0, nil, nil)
-	self:SetFont(SystemFont_LargeNamePlateFixed,            NORMAL, 20, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Med1,                           NORMAL, 12, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_Med2,                           NORMAL, 13, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_Med3,                           NORMAL, 14, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_NamePlate,                      NORMAL, 9, "", nil, nil, nil, 0, 0, 0, nil, nil)
-	self:SetFont(SystemFont_NamePlateCastBar,               NORMAL, 10, "OUTLINE", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_NamePlateFixed,                 NORMAL, 14, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Outline_Small,                  NORMAL, 10, "OUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_Outline_WTF2,                   NORMAL, 36, "OUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_Outline,                        NORMAL, 13, "OUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_OutlineThick_Huge2,             NORMAL, 22, "THICKOUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_OutlineThick_Huge4,             NORMAL, 26, "THICKOUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_OutlineThick_WTF,               NORMAL, 32, "THICKOUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_Shadow_Huge1_Outline,           NORMAL, 20, "OUTLINE", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Huge1,                   NORMAL, 20, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Huge2_Outline,           NORMAL, 24, "OUTLINE", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Huge2,                   NORMAL, 24, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Huge3,                   NORMAL, 25, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Huge4_Outline,           NORMAL, 27, "OUTLINE", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Huge4,                   NORMAL, 27, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Large_Outline,           NORMAL, 16, "OUTLINE", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Large,                   NORMAL, 16, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Large2_Outline,          NORMAL, 18, "OUTLINE", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Large2,                  NORMAL, 18, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Med1_Outline,            NORMAL, 12, "OUTLINE", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Med1,                    NORMAL, 12, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Med2_Outline,            NORMAL, 14, "OUTLINE", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Med2,                    NORMAL, 14, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Med3_Outline,            NORMAL, 14, "OUTLINE", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Med3,                    NORMAL, 14, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Outline_Huge3,           NORMAL, 25, "OUTLINE", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Small_Outline,           NORMAL, 10, "OUTLINE", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Small,                   NORMAL, 10, "", nil, nil, nil, 0, 0, 0, nil, nil)
-	self:SetFont(SystemFont_Shadow_Small2_Outline,          NORMAL, 11, "OUTLINE", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Shadow_Small2,                  NORMAL, 11, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_Small,                          NORMAL, 10, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_Small2,                         NORMAL, 11, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_Tiny,                           NORMAL, 9, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_Tiny2,                          NORMAL, 8, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont_World_ThickOutline,             NORMAL, 64, "THICKOUTLINE", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_World,                          NORMAL, 64, "", nil, nil, nil, 0, 0, 0, 1, -1)
-	self:SetFont(SystemFont_WTF2,                           NORMAL, 36, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont16_Shadow_ThickOutline,          NORMAL, 16, "THICKOUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont18_Shadow_ThickOutline,          NORMAL, 18, "THICKOUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont22_Outline,                      NORMAL, 22, "OUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(SystemFont22_Shadow_Outline,               NORMAL, 22, "OUTLINE", nil, nil, nil, 0, 0, 0, 2, -2)
-	self:SetFont(SystemFont22_Shadow_ThickOutline,          NORMAL, 18, "THICKOUTLINE", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Tooltip_Med,                               NORMAL, 12, "", nil, nil, nil, nil, nil, nil, nil, nil)
-	self:SetFont(Tooltip_Small,                             NORMAL, 10, "", nil, nil, nil, nil, nil, nil, nil, nil)
-
-	-- Override
-	self:SetFont(AchievementFont_Small,              NORMAL, 12)
-	self:SetFont(ChatBubbleFont,                     NORMAL, PhanxFontDB.chatbubblesize)
-	self:SetFont(FriendsFont_Large,                  NORMAL, 15)
-	self:SetFont(FriendsFont_Normal,                 NORMAL, 13)
-	self:SetFont(FriendsFont_Small,                  NORMAL, 13)
-	self:SetFont(FriendsFont_UserText,               NORMAL, 13)
-	self:SetFont(GameTooltipHeader,                  NORMAL, 15)
-	self:SetFont(AchievementDescriptionFont,         NORMAL, 12)
-	self:SetFont(InvoiceFont_Med,                    ITALIC, 13)
-	self:SetFont(InvoiceFont_Small,                  ITALIC, 11)
-	self:SetFont(NumberFont_GameNormal,              NUMBER, 12)
-	self:SetFont(ReputationDetailFont,                 BOLD, 12)
-	self:SetFont(SpellFont_Small,                      BOLD, 11)
-	self:SetFont(SystemFont_Outline_Small,           NUMBER, 12)
-	self:SetFont(SystemFont_Shadow_Med1,             NORMAL, 13)
-	self:SetFont(SystemFont_Shadow_Small,            NORMAL, 12)
-	self:SetFont(SystemFont_Shadow_Small2,           NORMAL, 12)
-	self:SetFont(Tooltip_Med,                        NORMAL, 13)
-	self:SetFont(Tooltip_Small,                      NORMAL, 13)
-	self:SetFont(ObjectiveTrackerFont12,             NORMAL, 13)
-
-	-- Derived fonts in FontStyles.xml
-	self:SetFont(BossEmoteNormalHuge,                  BOLD, 27, "THICKOUTLINE")
-	self:SetFont(CombatTextFont,                     DAMAGE, 26)
-	self:SetFont(ErrorFont,                            BOLD, 20, "OUTLINE", nil, nil, nil, nil, nil, nil, 1, -1)
-	self:SetFont(QuestFontNormalSmall,                 BOLD, 13, "", nil, nil, nil, 0.54, 0.4, 0.1)
-	self:SetFont(WorldMapTextFont,                     BOLD, 27, "THICKOUTLINE", nil, nil, nil, nil, nil, nil, 1, -1)
+	RestyleAll()
 
 	-- Chat frames
 	local _, size = ChatFrame1:GetFont()
