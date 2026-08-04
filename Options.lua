@@ -240,7 +240,8 @@ local sizeList
 local function SortedFontNames()
 	local names = {}
 	for name in next, Addon.Sizes do
-		if not Addon.OwnSetting[name] then
+		if not (Addon.OwnSetting[name] or Addon.FixedSize[name])
+			and (PhanxFontDB.showderived or Addon.Objects[name] or PhanxFontDB.sizes[name]) then
 			table.insert(names, name)
 		end
 	end
@@ -284,7 +285,8 @@ local function InitSizeRow(row, data)
 	end
 
 	row.name = data.name
-	row.Label:SetText(data.name)
+	local family = PhanxFontDB.showderived and Addon.Objects[data.name]
+	row.Label:SetText(family and L["FontFamilyName"]:format(data.name) or data.name)
 
 	local minValue, maxValue = SizeRange(data.name)
 
@@ -342,10 +344,34 @@ local function CreateSizeCanvas(canvas)
 	blizzardLabel:SetPoint("LEFT", blizzardSizes, "RIGHT", 6, 0)
 	blizzardLabel:SetText(L["DisableSizeOverrides"])
 
+	local derivedRow = CreateFrame("Frame", nil, canvas)
+	derivedRow:SetPoint("TOPLEFT", toggleRow, "BOTTOMLEFT", 0, 0)
+	derivedRow:SetPoint("TOPRIGHT", toggleRow, "BOTTOMRIGHT", 0, 0)
+	derivedRow:SetHeight(30)
+
+	local showDerived = CreateFrame("CheckButton", nil, derivedRow, "SettingsCheckboxTemplate")
+	showDerived:SetPoint("LEFT")
+	showDerived:Init(PhanxFontDB.showderived, function()
+		GameTooltip_AddNormalLine(SettingsTooltip, L["ShowDerivedFontsTooltip"])
+	end)
+	showDerived:RegisterCallback(SettingsCheckboxMixin.Event.OnValueChanged, function(_, checked)
+		PhanxFontDB.showderived = checked
+		sizeList.names = SortedFontNames()
+		RefreshSizeList()
+	end, showDerived)
+
+	showDerived.HoverBackground:ClearAllPoints()
+	showDerived.HoverBackground:SetPoint("TOPLEFT", derivedRow)
+	showDerived.HoverBackground:SetPoint("BOTTOMRIGHT", derivedRow)
+
+	local derivedLabel = derivedRow:CreateFontString(nil, "ARTWORK", "GameFontHighlight")
+	derivedLabel:SetPoint("LEFT", showDerived, "RIGHT", 6, 0)
+	derivedLabel:SetText(L["ShowDerivedFonts"])
+
 	-- one container, so the search box and the list resolve to the same width whatever size the
 	-- canvas ends up
 	local body = CreateFrame("Frame", nil, canvas)
-	body:SetPoint("TOPLEFT", toggleRow, "BOTTOMLEFT", 8, -8)
+	body:SetPoint("TOPLEFT", derivedRow, "BOTTOMLEFT", 8, -8)
 	body:SetPoint("BOTTOMRIGHT", canvas, "BOTTOMRIGHT", -16, 16)
 
 	local search = CreateFrame("EditBox", nil, body, "SearchBoxTemplate")
@@ -374,14 +400,18 @@ local function CreateSizeCanvas(canvas)
 		Search = search,
 		ScrollBox = scrollBox,
 		BlizzardSizes = blizzardSizes,
+		ShowDerived = showDerived,
 		names = SortedFontNames(),
 	}
 
 	canvas:SetDefaultsHandler(function()
 		wipe(PhanxFontDB.sizes)
 		PhanxFontDB.blizzardsizes = Addon.Defaults.blizzardsizes
+		PhanxFontDB.showderived = Addon.Defaults.showderived
 		blizzardSizes:SetValue(PhanxFontDB.blizzardsizes)
+		showDerived:SetValue(PhanxFontDB.showderived)
 		Addon:SetFonts()
+		sizeList.names = SortedFontNames()
 		RefreshSizeList()
 	end)
 

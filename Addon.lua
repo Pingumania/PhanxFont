@@ -39,6 +39,7 @@ Addon.Defaults = {
 	damagescale = 2,
 	chatbubblesize = 16,
 	blizzardsizes = false,
+	showderived = false,
 	sizes = {},
 }
 
