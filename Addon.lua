@@ -154,16 +154,17 @@ local OWN_SIZE = {
 	ChatBubbleFont = function() return PhanxFontDB.chatbubblesize end,
 }
 
---[[ PhanxFont:SetFont(_object_, _font_, _size_)
-Gives _object_ the _font_ file at _size_, keeping the outline, colour and shadow the game gave it.
+--[[ PhanxFont:SetFont(_object_, _font_, _size_[, _style_])
+Gives _object_ the _font_ file at _size_, keeping the colour and shadow the game gave it. _style_ is
+the outline, and defaults to the one the object already has.
 --]]
-function Addon:SetFont(object, font, size)
+function Addon:SetFont(object, font, size, style)
 	if not object then return end
 
 	local current, height, flags = object:GetFont()
 	if not (font or current) then return end
 
-	object:SetFont(font or current, floor((size or height) * PhanxFontDB.scale + 0.5), flags)
+	object:SetFont(font or current, floor((size or height) * PhanxFontDB.scale + 0.5), style or flags)
 end
 
 local function Record(name, object)
