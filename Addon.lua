@@ -247,23 +247,6 @@ function Addon:SetFonts(event, addon)
 	local SetCVar = C_CVar and C_CVar.SetCVar or SetCVar
 	SetCVar("WorldTextScale", PhanxFontDB.damagescale)
 
-	-- Fix for adventure journal
-	if addon == "Blizzard_EncounterJournal" then
-		self:SetFont(EncounterJournalSuggestFrame.Suggestion1.centerDisplay.description.text, NORMAL, 15)
-	end
-
-	-- WorldMap Bounty board
-	if Addon.Retail then
-		self:SetFont(WorldMapFrame.overlayFrames[4].BountyName, NORMAL, 16, "OUTLINE", nil, nil, nil, nil, nil, nil, 1, -1)
-	end
-
-	if Addon.Retail then
-		-- There is something wonky with the Blizzard template, so we have to manually style them.
-		self:SetFont(LFGListFrame.ApplicationViewer.NameColumnHeader.Label, NORMAL, 12)
-		self:SetFont(LFGListFrame.ApplicationViewer.RoleColumnHeader.Label, NORMAL, 12)
-		self:SetFont(LFGListFrame.ApplicationViewer.ItemLevelColumnHeader.Label, NORMAL, 12)
-		self:SetFont(LFGApplicationViewerRatingColumnHeader.Label, NORMAL, 12) -- Blizz?!
-	end
 end
 
 ------------------------------------------------------------------------
@@ -277,23 +260,9 @@ f:SetScript("OnEvent", function(self, event, addon)
 
 	Addon:SetFonts(event, addon)
 
-	if PaperDollTitlesPane then
-		for _, button in pairs(PaperDollTitlesPane.buttons) do
-			button.text:SetFontObject(GameFontHighlightSmallLeft)
-		end
-	end
-
 	if BattlePetTooltip then
 		BattlePetTooltip.Name:SetFontObject(GameTooltipHeaderText)
 		FloatingBattlePetTooltip.Name:SetFontObject(GameTooltipHeaderText)
-	end
-
-	if LFGListFrame then
-		LFGListFrame.CategorySelection.CategoryButtons[1].Label:SetFontObject(GameFontNormal)
-	end
-
-	if WorldMapFrameHomeButtonText then
-		WorldMapFrameHomeButtonText:SetFontObject(GameFontNormal)
 	end
 end)
 
