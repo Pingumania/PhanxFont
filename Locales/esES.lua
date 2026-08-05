@@ -1,7 +1,7 @@
-local _, Addon = ...
+local _, ns = ...
 if GetLocale() ~= "esES" then return end
 
-local L = Addon.L("esES")
+local L = ns.L("esES")
 
 L["Normal Font"] = "Fuente normal"
 L["Bold Font"] = "Fuente en negrita"

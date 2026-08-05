@@ -1,10 +1,10 @@
-local _, Addon = ...
+local _, ns = ...
 
 --[[ PhanxFont.Objects
 Every font object PhanxFont knows about, true when it is a font family that other objects were
 built from. Regenerate with font_parser.ps1.
 --]]
-Addon.Objects = {
+ns.Objects = {
 	AchievementCriteriaFont               = false,
 	AchievementDateFont                   = false,
 	AchievementDescriptionFont            = false,
@@ -441,7 +441,7 @@ Addon.Objects = {
 --[[ PhanxFont.FixedSize
 Font objects the client sizes in screen pixels, so PhanxFont leaves their size alone.
 --]]
-Addon.FixedSize = {
+ns.FixedSize = {
 	CombatTextFont                        = true,
 	CombatTextFontOutline                 = true,
 	SystemFont_LargeNamePlateFixed        = true,

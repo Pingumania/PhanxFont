@@ -1,5 +1,5 @@
-local _, Addon = ...
-local L = Addon.L("enUS")
+local _, ns = ...
+local L = ns.L("enUS")
 
 L["Normal Font"] = "Normal Font"
 L["Bold Font"] = "Bold Font"

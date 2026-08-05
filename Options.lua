@@ -9,8 +9,8 @@
 	https://github.com/phanx-wow/PhanxFont
 ----------------------------------------------------------------------]]
 
-local _, Addon = ...
-local L = Addon.L
+local _, ns = ...
+local L = ns.L
 
 local SAMPLE_KEYS = {"SampleEnglish", "SampleCyrillic", "SampleChinese"}
 
@@ -118,13 +118,13 @@ end
 
 local function SetFont(key, value)
 	PhanxFontDB[key] = value
-	Addon:SetFonts()
+	ns:SetFonts()
 	RefreshPreview()
 end
 
 local function CreateFontRow(key)
 	return function(rowFrame)
-		return Addon:CreateMediaDropdown(rowFrame, "font", function()
+		return ns:CreateMediaDropdown(rowFrame, "font", function()
 			return PhanxFontDB[key]
 		end, function(value)
 			SetFont(key, value)
@@ -134,11 +134,11 @@ end
 
 local function ResetFont(key)
 	return function()
-		SetFont(key, Addon.Defaults[key])
+		SetFont(key, ns.Defaults[key])
 	end
 end
 
-Addon:RegisterSettings("PhanxFontDB", {
+ns:RegisterSettings("PhanxFontDB", {
 	{
 		type = "custom",
 		title = L["Normal Font"],
@@ -166,7 +166,7 @@ Addon:RegisterSettings("PhanxFontDB", {
 		type = "slider",
 		title = L["Scale"],
 		tooltip = L["ScaleTooltip"],
-		default = Addon.Defaults.scale,
+		default = ns.Defaults.scale,
 		minValue = 0.5,
 		maxValue = 2,
 		valueStep = 0.05,
@@ -188,7 +188,7 @@ Addon:RegisterSettings("PhanxFontDB", {
 		key = "damagescale",
 		type = "slider",
 		title = L["Damage Scale"],
-		default = Addon.Defaults.damagescale,
+		default = ns.Defaults.damagescale,
 		minValue = 0.5,
 		maxValue = 4,
 		valueStep = 0.05,
@@ -198,7 +198,7 @@ Addon:RegisterSettings("PhanxFontDB", {
 		key = "chatbubblesize",
 		type = "slider",
 		title = L["Chatbubble Size"],
-		default = Addon.Defaults.chatbubblesize,
+		default = ns.Defaults.chatbubblesize,
 		minValue = 12,
 		maxValue = 32,
 		valueStep = 1,
@@ -211,8 +211,8 @@ Addon:RegisterSettings("PhanxFontDB", {
 })
 
 for _, key in ipairs({"scale", "damagescale", "chatbubblesize"}) do
-	Addon:RegisterOptionCallback(key, function()
-		Addon:SetFonts()
+	ns:RegisterOptionCallback(key, function()
+		ns:SetFonts()
 		RefreshPreview()
 	end)
 end
@@ -239,9 +239,9 @@ local sizeList
 
 local function SortedFontNames()
 	local names = {}
-	for name in next, Addon.Sizes do
-		if not (Addon.OwnSetting[name] or Addon.FixedSize[name])
-			and (PhanxFontDB.showderived or Addon.Objects[name] or PhanxFontDB.sizes[name]) then
+	for name in next, ns.Sizes do
+		if not (ns.OwnSetting[name] or ns.FixedSize[name])
+			and (PhanxFontDB.showderived or ns.Objects[name] or PhanxFontDB.sizes[name]) then
 			table.insert(names, name)
 		end
 	end
@@ -251,13 +251,13 @@ local function SortedFontNames()
 end
 
 local function CurrentSize(name)
-	return Addon:GetFontSize(name) or MIN_FONT_SIZE
+	return ns:GetFontSize(name) or MIN_FONT_SIZE
 end
 
 -- a handful of the game's own fonts are far larger than anything worth offering as a default
 -- ceiling, so those rows stretch to fit rather than every row carrying their range
 local function SizeRange(name)
-	local largest = math.max(MAX_FONT_SIZE, Addon.Sizes[name] or 0, CurrentSize(name))
+	local largest = math.max(MAX_FONT_SIZE, ns.Sizes[name] or 0, CurrentSize(name))
 	return MIN_FONT_SIZE, math.ceil(largest)
 end
 
@@ -279,13 +279,13 @@ local function InitSizeRow(row, data)
 		row.Slider:RegisterCallback(MinimalSliderWithSteppersMixin.Event.OnValueChanged, function(_, value)
 			if row.name and not row.settingUp then
 				PhanxFontDB.sizes[row.name] = value
-				Addon:SetFonts()
+				ns:SetFonts()
 			end
 		end, row)
 	end
 
 	row.name = data.name
-	local family = PhanxFontDB.showderived and Addon.Objects[data.name]
+	local family = PhanxFontDB.showderived and ns.Objects[data.name]
 	row.Label:SetText(family and L["FontFamilyName"]:format(data.name) or data.name)
 
 	local minValue, maxValue = SizeRange(data.name)
@@ -332,7 +332,7 @@ local function CreateSizeCanvas(canvas)
 	end)
 	blizzardSizes:RegisterCallback(SettingsCheckboxMixin.Event.OnValueChanged, function(_, checked)
 		PhanxFontDB.blizzardsizes = checked
-		Addon:SetFonts()
+		ns:SetFonts()
 		RefreshSizeList()
 	end, blizzardSizes)
 
@@ -406,11 +406,11 @@ local function CreateSizeCanvas(canvas)
 
 	canvas:SetDefaultsHandler(function()
 		wipe(PhanxFontDB.sizes)
-		PhanxFontDB.blizzardsizes = Addon.Defaults.blizzardsizes
-		PhanxFontDB.showderived = Addon.Defaults.showderived
+		PhanxFontDB.blizzardsizes = ns.Defaults.blizzardsizes
+		PhanxFontDB.showderived = ns.Defaults.showderived
 		blizzardSizes:SetValue(PhanxFontDB.blizzardsizes)
 		showDerived:SetValue(PhanxFontDB.showderived)
-		Addon:SetFonts()
+		ns:SetFonts()
 		sizeList.names = SortedFontNames()
 		RefreshSizeList()
 	end)
@@ -418,6 +418,6 @@ local function CreateSizeCanvas(canvas)
 	RefreshSizeList()
 end
 
-Addon:RegisterSubSettingsCanvas(L["Font Sizes"], CreateSizeCanvas)
+ns:RegisterSubSettingsCanvas(L["Font Sizes"], CreateSizeCanvas)
 
-Addon:RegisterSettingsSlash("/font", "/phanxfont")
+ns:RegisterSettingsSlash("/font", "/phanxfont")

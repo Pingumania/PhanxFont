@@ -1,7 +1,7 @@
-local _, Addon = ...
+local _, ns = ...
 if GetLocale() ~= "deDE" then return end
 
-local L = Addon.L("deDE")
+local L = ns.L("deDE")
 
 L["Normal Font"] = "Normalschrift"
 L["Bold Font"] = "Fettschrift"

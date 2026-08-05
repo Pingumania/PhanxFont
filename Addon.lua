@@ -9,13 +9,13 @@
 	https://github.com/phanx-wow/PhanxFont
 ----------------------------------------------------------------------]]
 
-local ADDON, Addon = ...
-_G.PhanxFont = Addon
+local ADDON_NAME, ns = ...
+_G.PhanxFont = ns
 
-Addon.Retail = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
+ns.Retail = WOW_PROJECT_ID == WOW_PROJECT_MAINLINE
 
 -- the resolved font files, for PhanxFont_Plugins
-Addon.Fonts = {}
+ns.Fonts = {}
 
 local function FindMediaName(mediaType, path)
 	local media = LibStub("LibSharedMedia-3.0")
@@ -31,7 +31,7 @@ end
 
 local DEFAULT_FONT = LibStub("LibSharedMedia-3.0"):GetDefault("font")
 
-Addon.Defaults = {
+ns.Defaults = {
 	normal = DEFAULT_FONT,
 	bold   = DEFAULT_FONT,
 	damage = FindMediaName("font", DAMAGE_TEXT_FONT) or DEFAULT_FONT,
@@ -43,12 +43,12 @@ Addon.Defaults = {
 	sizes = {},
 }
 
-PhanxFontDB = CopyTable(Addon.Defaults)
+PhanxFontDB = CopyTable(ns.Defaults)
 
 -- the saved variables replace the table above once they load, which happens after this file runs,
 -- so anything added to the defaults since the player last logged in has to be filled in later
 local function ApplyDefaults()
-	for key, value in next, Addon.Defaults do
+	for key, value in next, ns.Defaults do
 		if PhanxFontDB[key] == nil then
 			PhanxFontDB[key] = type(value) == "table" and CopyTable(value) or value
 		end
@@ -59,25 +59,25 @@ end
 Font objects sized by a setting of their own rather than by PhanxFont's opinion. Turning the
 overrides off leaves them alone, and the font size list skips them.
 --]]
-Addon.OwnSetting = {
+ns.OwnSetting = {
 	ChatBubbleFont = true,
 }
 
 local KEEP_OWN_SIZE = setmetatable({}, { __index = function(_, name)
-	return Addon.OwnSetting[name] or Addon.FixedSize[name]
+	return ns.OwnSetting[name] or ns.FixedSize[name]
 end })
 
 --[[ PhanxFont.Sizes
 The size each font object is given by the game, keyed by the font object's global name and filled in
 as PhanxFont walks them. Used by the options to list what can be resized, and to put a size back.
 --]]
-Addon.Sizes = {}
+ns.Sizes = {}
 
 --[[ PhanxFont.Preferred
 The size PhanxFont gives a font object instead of the game's own. Anything not listed keeps the size
 the game gave it.
 --]]
-Addon.Preferred = {
+ns.Preferred = {
 	AchievementDescriptionFont = 12,
 	AchievementFont_Small      = 12,
 	BossEmoteNormalHuge        = 27,
@@ -107,16 +107,16 @@ Addon.Preferred = {
 The size the font object named _name_ ends up at: the size you set for it, or the game's own size
 while the overrides are switched off, or the size PhanxFont prefers.
 --]]
-function Addon:GetFontSize(name)
+function ns:GetFontSize(name)
 	if PhanxFontDB.sizes[name] then
 		return PhanxFontDB.sizes[name]
 	end
 
 	if PhanxFontDB.blizzardsizes and not KEEP_OWN_SIZE[name] then
-		return Addon.Sizes[name]
+		return ns.Sizes[name]
 	end
 
-	return Addon.Preferred[name] or Addon.Sizes[name]
+	return ns.Preferred[name] or ns.Sizes[name]
 end
 
 local NORMAL       = LibStub("LibSharedMedia-3.0"):Fetch("font", DEFAULT_FONT)
@@ -132,7 +132,7 @@ local NUMBER       = BOLD
 Which replacement font each object gets, keyed by the font object's global name. Read from the file
 the game gave it, on the first walk, before PhanxFont has replaced anything.
 --]]
-Addon.Roles = {}
+ns.Roles = {}
 
 local FONT_ROLES = {
 	["fonts\\frizqt__.ttf"]     = "normal",
@@ -158,7 +158,7 @@ local OWN_SIZE = {
 Gives _object_ the _font_ file at _size_, keeping the colour and shadow the game gave it. _style_ is
 the outline, and defaults to the one the object already has.
 --]]
-function Addon:SetFont(object, font, size, style)
+function ns:SetFont(object, font, size, style)
 	if not object then return end
 
 	local current, height, flags = object:GetFont()
@@ -171,12 +171,12 @@ local function Record(name, object)
 	local font, height = object:GetFont()
 	if not font then return end
 
-	if Addon.Roles[name] == nil then
-		Addon.Roles[name] = FONT_ROLES[font:lower()] or "normal"
+	if ns.Roles[name] == nil then
+		ns.Roles[name] = FONT_ROLES[font:lower()] or "normal"
 	end
 
-	if Addon.Sizes[name] == nil then
-		Addon.Sizes[name] = height
+	if ns.Sizes[name] == nil then
+		ns.Sizes[name] = height
 	end
 
 	return true
@@ -189,13 +189,13 @@ local function Restyle(name, object)
 
 	if KEEP_OWN_SIZE[name] then
 		local own = OWN_SIZE[name]
-		object:SetFont(Addon.Fonts[Addon.Roles[name]] or font, own and own() or height, flags)
+		object:SetFont(ns.Fonts[ns.Roles[name]] or font, own and own() or height, flags)
 		return
 	end
 
-	local size = Addon:GetFontSize(name) or height
+	local size = ns:GetFontSize(name) or height
 
-	object:SetFont(Addon.Fonts[Addon.Roles[name]] or font, floor(size * PhanxFontDB.scale + 0.5), flags)
+	object:SetFont(ns.Fonts[ns.Roles[name]] or font, floor(size * PhanxFontDB.scale + 0.5), flags)
 end
 
 local function IsFontObject(object)
@@ -208,7 +208,7 @@ local function IsFontObject(object)
 end
 
 local function RestyleAll()
-	for name, isFamily in pairs(Addon.Objects) do
+	for name, isFamily in pairs(ns.Objects) do
 		local object = _G[name]
 		if IsFontObject(object) then
 			if isFamily or PhanxFontDB.sizes[name] then
@@ -220,7 +220,7 @@ local function RestyleAll()
 	end
 end
 
-function Addon:SetFonts(event, addon)
+function ns:SetFonts(event, addon)
 	ApplyDefaults()
 
 	NORMAL     = LibStub("LibSharedMedia-3.0"):Fetch("font", PhanxFontDB.normal)
@@ -230,9 +230,9 @@ function Addon:SetFonts(event, addon)
 	ITALIC     = NORMAL
 	NUMBER     = BOLD
 
-	Addon.Fonts.normal = NORMAL
-	Addon.Fonts.bold   = BOLD
-	Addon.Fonts.damage = DAMAGE
+	ns.Fonts.normal = NORMAL
+	ns.Fonts.bold   = BOLD
+	ns.Fonts.damage = DAMAGE
 
 	UNIT_NAME_FONT     = NORMAL
 	NAMEPLATE_FONT     = BOLD
@@ -260,7 +260,7 @@ f:SetScript("OnEvent", function(self, event, addon)
 	UIDROPDOWNMENU_DEFAULT_TEXT_HEIGHT = 14
 	CHAT_FONT_HEIGHTS = { 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24 }
 
-	Addon:SetFonts(event, addon)
+	ns:SetFonts(event, addon)
 
 	if BattlePetTooltip then
 		BattlePetTooltip.Name:SetFontObject(GameTooltipHeaderText)
@@ -296,7 +296,7 @@ hooksecurefunc("FCF_SetChatWindowFontSize", function(self, frame, size)
 	end
 end)
 
-if Addon.Retail then
+if ns.Retail then
 	hooksecurefunc("BattlePetToolTip_Show", function()
 		BattlePetTooltip:SetHeight(BattlePetTooltip:GetHeight() + 12)
 	end)
